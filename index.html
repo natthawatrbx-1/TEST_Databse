@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบันทึกข้อมูล</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
+        input { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box;}
+        button { width: 100%; padding: 10px; background: #28a745; color: white; border: none; cursor: pointer; }
+        button:hover { background: #218838; }
+    </style>
+</head>
+<body>
+
+    <h2>ลงทะเบียน</h2>
+    <form id="myForm">
+        <label>ชื่อ:</label>
+        <input type="text" name="name" required placeholder="กรอกชื่อของคุณ">
+        
+        <label>อีเมล:</label>
+        <input type="email" name="email" required placeholder="กรอกอีเมล">
+        
+        <button type="submit" id="btnSubmit">บันทึกข้อมูล</button>
+    </form>
+
+    <script>
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbzcVp_aTOJkhKh-n5aHVHBXPf0D--L1LThLoUkc1u3z5sOkjUN1QRxw-jnQ74dyeeSOjw/exec'; // <--- อย่าลืมเปลี่ยนตรงนี้นะครับ!
+        const form = document.forms['myForm'];
+        const btn = document.getElementById('btnSubmit');
+
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            btn.innerText = "กำลังบันทึก...";
+            
+            // ส่งข้อมูลด้วย fetch
+            fetch(scriptURL, { method: 'POST', body: new FormData(form)})
+            .then(response => {
+                alert("บันทึกข้อมูลสำเร็จ!");
+                form.reset();
+                btn.innerText = "บันทึกข้อมูล";
+            })
+            .catch(error => {
+                console.error('Error!', error.message);
+                alert("เกิดข้อผิดพลาด ลองใหม่อีกครั้ง");
+                btn.innerText = "บันทึกข้อมูล";
+            });
+        });
+    </script>
+</body>
+</html>

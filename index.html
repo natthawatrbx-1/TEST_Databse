@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบริหารจัดการข้อมูล (Full CRUD)</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f0f2f5; }
+        .main-card { border-radius: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.05); border: none; }
+        .btn-action { width: 35px; height: 35px; padding: 0; line-height: 35px; border-radius: 50%; margin: 0 2px; transition: all 0.2s; }
+        .btn-action:hover { transform: scale(1.1); }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 9999; display: flex; justify-content: center; align-items: center; display: none;}
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+    </div>
+
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="fw-bold text-primary"><i class="fas fa-database"></i> ระบบจัดการข้อมูล</h2>
+                    <button class="btn btn-primary rounded-pill px-4" onclick="openModal('create')">
+                        <i class="fas fa-plus me-2"></i> เพิ่มข้อมูล
+                    </button>
+                </div>
+
+                <div class="card main-card p-4">
+                    <div class="input-group mb-3">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="ค้นหาชื่อ หรือ อีเมล...">
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>วันที่</th>
+                                    <th>ชื่อ-นามสกุล</th>
+                                    <th>อีเมล</th>
+                                    <th class="text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                </tbody>
+                        </table>
+                    </div>
+                    <div id="noData" class="text-center text-muted py-3" style="display:none;">ไม่พบข้อมูล</div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="dataModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">ฟอร์มข้อมูล</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="dataForm">
+                        <input type="hidden" id="actionType" name="action"> <input type="hidden" id="editId" name="id"> <div class="mb-3">
+                            <label class="form-label">ชื่อ-นามสกุล</label>
+                            <input type="text" class="form-control" name="name" id="inputName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">อีเมล</label>
+                            <input type="email" class="form-control" name="email" id="inputEmail" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">บันทึก</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbzcVp_aTOJkhKh-n5aHVHBXPf0D--L1LThLoUkc1u3z5sOkjUN1QRxw-jnQ74dyeeSOjw/exec'; // <--- อย่าลืมเปลี่ยนลิงก์!
+        
+        let allData = [];
+        const myModal = new bootstrap.Modal(document.getElementById('dataModal'));
+
+        // 1. โหลดข้อมูลเริ่มต้น
+        async function fetchData() {
+            showLoading(true);
+            try {
+                const response = await fetch(scriptURL);
+                const json = await response.json();
+                allData = json.slice(1); // ตัด Header ออก
+                renderTable(allData);
+            } catch (error) {
+                Swal.fire('Error', 'ไม่สามารถโหลดข้อมูลได้', 'error');
+            }
+            showLoading(false);
+        }
+
+        // 2. แสดงตาราง
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            if(data.length === 0) {
+                document.getElementById('noData').style.display = 'block';
+                return;
+            }
+            document.getElementById('noData').style.display = 'none';
+
+            data.slice().reverse().forEach(row => {
+                // row[0]=id, row[1]=time, row[2]=name, row[3]=email
+                let dateStr = new Date(row[1]).toLocaleDateString('th-TH');
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><small class="text-muted">${dateStr}</small></td>
+                    <td class="fw-bold">${row[2]}</td>
+                    <td>${row[3]}</td>
+                    <td class="text-center">
+                        <button class="btn btn-warning text-white btn-action" onclick="openModal('update', '${row[0]}', '${row[2]}', '${row[3]}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-danger btn-action" onclick="deleteItem('${row[0]}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 3. เปิด Modal (ใช้ร่วมกันทั้ง เพิ่ม และ แก้ไข)
+        window.openModal = (mode, id = '', name = '', email = '') => {
+            document.getElementById('actionType').value = mode;
+            document.getElementById('editId').value = id;
+            document.getElementById('inputName').value = name;
+            document.getElementById('inputEmail').value = email;
+            
+            document.getElementById('modalTitle').innerText = mode === 'create' ? 'เพิ่มข้อมูลใหม่' : 'แก้ไขข้อมูล';
+            myModal.show();
+        }
+
+        // 4. บันทึกข้อมูล (Create / Update)
+        document.getElementById('dataForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            myModal.hide();
+            showLoading(true);
+
+            const form = document.getElementById('dataForm');
+            const formData = new FormData(form);
+
+            try {
+                const res = await fetch(scriptURL, { method: 'POST', body: formData });
+                const result = await res.json();
+                
+                if(result.status === 'success') {
+                    Swal.fire('สำเร็จ', result.message, 'success');
+                    fetchData(); // โหลดข้อมูลใหม่
+                    form.reset();
+                } else {
+                    Swal.fire('ผิดพลาด', result.message, 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'ส่งข้อมูลไม่สำเร็จ', 'error');
+            }
+            showLoading(false);
+        });
+
+        // 5. ลบข้อมูล (Delete)
+        window.deleteItem = async (id) => {
+            const confirm = await Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "ข้อมูลจะหายไปถาวรนะ!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'ลบเลย!'
+            });
+
+            if (confirm.isConfirmed) {
+                showLoading(true);
+                const formData = new FormData();
+                formData.append('action', 'delete');
+                formData.append('id', id);
+
+                try {
+                    const res = await fetch(scriptURL, { method: 'POST', body: formData });
+                    const result = await res.json();
+                    if(result.status === 'success') {
+                        Swal.fire('ลบแล้ว!', 'ข้อมูลถูกลบเรียบร้อย', 'success');
+                        fetchData();
+                    } else {
+                        Swal.fire('ผิดพลาด', result.message, 'error');
+                    }
+                } catch (error) {
+                    Swal.fire('Error', 'ลบข้อมูลไม่สำเร็จ', 'error');
+                }
+                showLoading(false);
+            }
+        }
+
+        // 6. ระบบค้นหา (Client-side Search)
+        document.getElementById('searchInput').addEventListener('keyup', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = allData.filter(row => 
+                String(row[2]).toLowerCase().includes(term) || 
+                String(row[3]).toLowerCase().includes(term)
+            );
+            renderTable(filtered);
+        });
+
+        function showLoading(isShow) {
+            document.getElementById('loadingOverlay').style.display = isShow ? 'flex' : 'none';
+        }
+
+        // เริ่มทำงาน
+        fetchData();
+    </script>
+</body>
+</html>
